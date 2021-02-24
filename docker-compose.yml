@@ -1,0 +1,65 @@
+version: "2.1"
+
+volumes:
+  pihole_config:
+  dnsmasq_config:
+  settings:
+
+services:
+  # https://hub.docker.com/r/pihole/pihole
+  pihole:
+    build: ./balena-pihole/pihole
+    privileged: true
+    volumes:
+      - "pihole_config:/etc/pihole"
+      - "dnsmasq_config:/etc/dnsmasq.d"
+    dns:
+      - "127.0.0.1"
+      - "1.1.1.1"
+    environment:
+      DNSMASQ_LISTENING: eth0
+      INTERFACE: eth0
+      PIHOLE_DNS_: 127.0.0.1#5053
+    network_mode: host
+    depends_on:
+      - unbound
+
+  # https://github.com/klutchell/unbound-dnscrypt
+  unbound:
+    build: ./balena-pihole/unbound
+    privileged: true
+    ports:
+      - "5053:5053/tcp"
+      - "5053:5053/udp"
+
+  # https://github.com/balenablocks/fbcp
+  fbcp:
+    image: balenablocks/fbcp
+    privileged: true
+    # restart: on-failure
+    # labels:
+    #     io.balena.features.dbus: "1"
+
+  kiosk:
+    restart: always
+    build: ./balena-dash/kiosk
+    privileged: true
+    ports:
+      - 8080:8080
+    volumes:
+      - 'settings:/data'
+
+  scheduler:
+    restart: always
+    build: ./balena-dash/scheduler
+    privileged: true
+
+  wifi-connect:
+    build: ./balena-dash/wifi-connect
+    restart: always
+    network_mode: host
+    privileged: true
+    labels:
+      io.balena.features.dbus: '1'
+      io.balena.features.firmware: '1'
+ 
